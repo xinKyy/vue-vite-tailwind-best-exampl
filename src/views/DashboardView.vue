@@ -1,7 +1,7 @@
 <template>
   <div class="p-6" style="width: 100%">
     <a-button @click="handleClick" class="mb-4" type="primary">Add User</a-button>
-    <a-table  :columns="columns" :data="data"  :loading="loading" >
+    <a-table  :columns="columns" :data="data"  :loading="loading" :pagination="false">
       <template #optional="{ record }">
         <a-button @click="()=>{
           form.name = record.name;
@@ -14,8 +14,15 @@
         {{ record.gender === "0" ? "Female" : "Male" }}
       </template>
     </a-table>
+    <div style="height: 20px"></div>
+    <a-pagination
+      :total="pagination.total"
+      :current="pageNum"
+      :page-size="pagination.pageSize"
+      @change="changeTable"
+    ></a-pagination>
 
-    <a-modal v-model:visible="visible" title="Add User" cancel-text="cancel" ok-text="confirm" @cancel="handleCancel" @before-ok="handleBeforeOk">
+    <a-modal v-model:visible="visible" :page-change="changeTable" title="Add User" cancel-text="cancel" ok-text="confirm" @cancel="handleCancel" @before-ok="handleBeforeOk">
       <a-form :model="form">
         <a-form-item field="name" label="Name">
           <a-input v-model="form.name" />
@@ -39,10 +46,20 @@ export default {
   setup() {
     const visible = ref(false);
     const loading = ref(false);
+    const pageNum = ref(1);
     const form = reactive({
       name: '',
       gender: ''
     });
+    const pagination = reactive({
+      total:0,
+    });
+
+    const changeTable = (currentPage) =>{
+      pageNum.value = currentPage;
+      getUserList();
+    }
+
     const columns = [
       {
         title: 'ID',
@@ -100,10 +117,13 @@ export default {
 
     const getUserList = () =>{
       loading.value = true;
-      APIGetUSerList().then(resp=>{
+      APIGetUSerList({
+        page_num:pageNum.value
+      }).then(resp=>{
         // console.log(resp);
         if(resp.result){
           data.value = resp.result.records;
+          pagination.total = resp.result.total;
         }
       }).finally(()=>{
         loading.value = false
@@ -122,6 +142,9 @@ export default {
       handleCancel,
       handleBeforeOk,
       resetForm,
+      changeTable,
+      pagination,
+      pageNum
     };
   },
 };
