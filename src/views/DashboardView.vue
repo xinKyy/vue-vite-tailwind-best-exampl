@@ -1,20 +1,48 @@
 <template>
   <div class="p-6" style="width: 100%">
-    <a-button class="mb-4" type="primary">Add User</a-button>
-    <a-table  :columns="columns" :data="data" >
+    <a-button @click="handleClick" class="mb-4" type="primary">Add User</a-button>
+    <a-table  :columns="columns" :data="data"  :loading="loading" >
       <template #optional="{ record }">
-        <a-button @click="$modal.info({ title:'Edit', content:record.name })">Edit</a-button>
+        <a-button @click="()=>{
+          form.name = record.name;
+          form.gender = record.gender;
+          form.id = record.id;
+          handleClick();
+        }">Edit</a-button>
+      </template>
+      <template #gender="{ record }">
+        {{ record.gender === "0" ? "Female" : "Male" }}
       </template>
     </a-table>
+
+    <a-modal v-model:visible="visible" title="Add User" cancel-text="cancel" ok-text="confirm" @cancel="handleCancel" @before-ok="handleBeforeOk">
+      <a-form :model="form">
+        <a-form-item field="name" label="Name">
+          <a-input v-model="form.name" />
+        </a-form-item>
+        <a-form-item field="gender" label="Gender">
+          <a-select v-model="form.gender">
+            <a-option value="1">Male</a-option>
+            <a-option value="0">Female</a-option>
+          </a-select>
+        </a-form-item>
+      </a-form>
+      </a-modal>
   </div>
 </template>
 
 <script>
-import {reactive, ref} from 'vue';
+import {onMounted, reactive, ref} from 'vue';
+import {APIAddUSer, APIEditUSer, APIGetUSerList} from "@/api/api";
 
 export default {
   setup() {
-    const show = ref(true);
+    const visible = ref(false);
+    const loading = ref(false);
+    const form = reactive({
+      name: '',
+      gender: ''
+    });
     const columns = [
       {
         title: 'ID',
@@ -26,24 +54,74 @@ export default {
       },
       {
         title: 'Gender',
-        dataIndex: 'gender',
+        slotName: 'gender',
       },
       {
         title: 'Optional',
         slotName: 'optional'
       }
     ];
-    const data = reactive([{
-      id:"1",
-      name:"111",
-      gender:"ccc"
-    }]);
+    const data = ref([]);
+    const handleClick = () => {
+      visible.value = true;
+    };
+    const handleCancel = () => {
+      visible.value = false;
+      form.name = null;
+      form.gender = null;
+      form.id = null;
+    };
+    const handleBeforeOk = (done) => {
+      if(form.id){
+        APIEditUSer({...form}).then(resp=>{
+          if(resp.result){
+            getUserList();
+          }
+        }).finally(()=>{
+          done()
+          resetForm();
+        })
+      } else {
+        APIAddUSer({...form}).then(resp=>{
+          if(resp.result){
+            getUserList();
+          }
+        }).finally(()=>{
+          done();
+          resetForm();
+        })
+      }
+    };
+    const resetForm = ()=>{
+      form.name = null;
+      form.gender = null;
+      form.id = null;
+    }
 
-
+    const getUserList = () =>{
+      loading.value = true;
+      APIGetUSerList().then(resp=>{
+        // console.log(resp);
+        if(resp.result){
+          data.value = resp.result.records;
+        }
+      }).finally(()=>{
+        loading.value = false
+      });
+    };
+    onMounted(()=>{
+      getUserList();
+    });
     return {
       columns,
       data,
-      show,
+      visible,
+      form,
+      loading,
+      handleClick,
+      handleCancel,
+      handleBeforeOk,
+      resetForm,
     };
   },
 };
